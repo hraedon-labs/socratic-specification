@@ -7,7 +7,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).parent.parent
 GATE = REPO_ROOT / "scripts" / "check_committed_identifiers.py"
-ENV_NAME = "SOCRATIC_SPECIFICATION_FORBIDDEN_IDENTIFIERS"
+ENV_NAME = "FORBIDDEN_IDENTIFIERS"
 
 
 def _run_gate(*args: str) -> subprocess.CompletedProcess[str]:
