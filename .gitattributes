@@ -1,0 +1,9 @@
+# Hash-bound fixtures must survive checkouts byte-identical (the fleet's
+# autocrlf lesson: CRLF materialization breaks SHA-256 binding). The
+# work-plan readiness gate digests fixture bytes via Path.read_bytes();
+# recorded fixture_fingerprint values are hashes of the LF blobs.
+tests/fixtures/** -text
+
+# Shell entry points must stay LF so bash can exec them from any checkout.
+*.sh        text eol=lf
+githooks/*  text eol=lf

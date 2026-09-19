@@ -22,10 +22,12 @@ def test_installed_gate_uses_bundled_schemas_and_correct_brief_renderer(
     subprocess.run(["git", "init", "-q", str(target)], check=True)
 
     spec = yaml.safe_load((FIXTURES / "valid-spec-v2.yaml").read_text())
-    (target / "spec.yaml").write_text(yaml.safe_dump(spec, sort_keys=False))
-    (target / "spec.md").write_text(render_spec(spec))
+    (target / "spec.yaml").write_text(
+        yaml.safe_dump(spec, sort_keys=False), encoding="utf-8"
+    )
+    (target / "spec.md").write_text(render_spec(spec), encoding="utf-8")
     brief_path = target / "decision-brief.md"
-    brief_path.write_text(render_decision_brief(spec))
+    brief_path.write_text(render_decision_brief(spec), encoding="utf-8")
 
     subprocess.run(["bash", str(INSTALLER), str(target)], check=True)
     assert (target / ".spec-gate" / "schemas" / "spec-v2.schema.json").is_file()
@@ -36,17 +38,17 @@ def test_installed_gate_uses_bundled_schemas_and_correct_brief_renderer(
     python_link.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
     python_link.chmod(0o755)
     env = os.environ.copy()
-    env["PATH"] = f"{bin_dir}:{env['PATH']}"
+    env["PATH"] = f"{bin_dir}{os.pathsep}{env['PATH']}"
 
     gate = target / ".spec-gate" / "spec-gate.sh"
     result = subprocess.run(
-        [str(gate)], cwd=target, env=env, capture_output=True, text=True, check=False
+        ["bash", str(gate)], cwd=target, env=env, capture_output=True, text=True, check=False
     )
     assert result.returncode == 0, result.stderr
 
     brief_path.write_text(brief_path.read_text() + "stale\n")
     stale = subprocess.run(
-        [str(gate)], cwd=target, env=env, capture_output=True, text=True, check=False
+        ["bash", str(gate)], cwd=target, env=env, capture_output=True, text=True, check=False
     )
     assert stale.returncode == 1
     assert "generated view is stale" in stale.stderr

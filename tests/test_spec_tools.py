@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -324,7 +325,7 @@ def _valid_change_work_plan() -> dict:
 def test_work_plan_can_reference_change_spec_without_fake_frs(tmp_path: Path) -> None:
     plan_path = tmp_path / "change-work-plan.yaml"
     for fixture in ("snapshot-v1.yaml", "snapshot-v2.yaml"):
-        (tmp_path / fixture).write_text((FIXTURES / fixture).read_text())
+        shutil.copyfile(FIXTURES / fixture, tmp_path / fixture)
     plan_path.write_text(yaml.safe_dump(_valid_change_work_plan(), sort_keys=False))
 
     _, errors = validate_artifact(plan_path, kind="work-plan", ready=True)
@@ -374,7 +375,7 @@ def test_ready_work_plan_rejects_missing_or_rewritten_compatibility_fixture(tmp_
     assert any("snapshot-v1.yaml' does not exist" in error for error in missing_errors)
 
     for fixture in ("snapshot-v1.yaml", "snapshot-v2.yaml"):
-        (tmp_path / fixture).write_text((FIXTURES / fixture).read_text())
+        shutil.copyfile(FIXTURES / fixture, tmp_path / fixture)
     (tmp_path / "snapshot-v1.yaml").write_text("rewritten\n")
     _, fingerprint_errors = validate_artifact(plan_path, kind="work-plan", ready=True)
     assert any("snapshot-v1.yaml' fingerprint does not match" in error for error in fingerprint_errors)
