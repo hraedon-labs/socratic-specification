@@ -11,6 +11,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Gate contract (publication visibility is a closed set)
+        run: python3 tests/test_identifier_gate_visibility.py
       - name: Fail closed if a public repo has no denylist configured
         env:
           DENYLIST: ${{ secrets.FORBIDDEN_IDENTIFIERS }}
