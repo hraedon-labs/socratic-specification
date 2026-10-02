@@ -39,19 +39,10 @@ jobs:
         env:
           FORBIDDEN_IDENTIFIERS: ${{ secrets.FORBIDDEN_IDENTIFIERS }}
         run: python3 scripts/check_committed_identifiers.py
-      - name: Check commit messages for work-domain identifiers
+      # Every commit and intermediate file version the event publishes. The
+      # event-derived range needs the full-history checkout above.
+      - name: Published-range identifier gate
+        if: github.event_name == 'push' || github.event_name == 'pull_request'
         env:
           FORBIDDEN_IDENTIFIERS: ${{ secrets.FORBIDDEN_IDENTIFIERS }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          BEFORE_SHA: ${{ github.event.before }}
-        run: |
-          # On a PR, scan the branch's own commits; on a push, scan what arrived.
-          if [ -n "$BASE_SHA" ]; then
-            range="$BASE_SHA..HEAD"
-          elif [ -n "$BEFORE_SHA" ] && git cat-file -e "$BEFORE_SHA^{commit}" 2>/dev/null; then
-            range="$BEFORE_SHA..HEAD"
-          else
-            range="HEAD~1..HEAD"
-          fi
-          echo "scanning commit messages in $range"
-          python3 scripts/check_committed_identifiers.py --rev-range "$range"
+        run: python3 scripts/check_committed_identifiers.py --ci-range
