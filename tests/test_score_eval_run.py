@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import subprocess
 import sys
 
+import pytest
 import yaml
 
 from scripts.score_eval_run import schema_errors, score_eval_run
@@ -218,3 +220,78 @@ def test_score_reports_invalid_schema_json_with_path(tmp_path: Path) -> None:
 
     assert len(errors) == 1
     assert f"case.yaml: {schema_path}: invalid schema:" in errors[0]
+
+
+@pytest.mark.parametrize("field", ["case_version", "run_version"])
+@pytest.mark.parametrize("version", [
+    [], [2], {"value": 2}, {2}, True, False, "2", 1.5, 3, float("nan"), float("inf"),
+])
+def test_score_cli_reports_unsupported_version_without_traceback(
+    tmp_path: Path, field: str, version: object,
+) -> None:
+    case = _case()
+    run = _run()
+    (case if field == "case_version" else run)[field] = version
+    case_path = tmp_path / "case.yaml"
+    run_path = tmp_path / "run.yaml"
+    case_path.write_text(yaml.safe_dump(case, sort_keys=False))
+    run_path.write_text(yaml.safe_dump(run, sort_keys=False))
+
+    result = subprocess.run(
+        [sys.executable, "scripts/score_eval_run.py", str(case_path), str(run_path)],
+        cwd=Path(__file__).parent.parent, capture_output=True, text=True,
+    )
+
+    path = case_path if field == "case_version" else run_path
+    artifact = "case" if field == "case_version" else "run"
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert result.stderr == (
+        f"{path}: $.{field}: unsupported {artifact} schema version "
+        f"{version!r}; supported versions are 1 and 2\n"
+    )
+
+
+@pytest.mark.parametrize("version", [1, 2, 1.0, 2.0])
+def test_score_cli_preserves_supported_numeric_version_forms(
+    tmp_path: Path, version: int | float,
+) -> None:
+    case = _case()
+    run = _run()
+    case["case_version"] = run["run_version"] = version
+    case_path = tmp_path / "case.yaml"
+    run_path = tmp_path / "run.yaml"
+    case_path.write_text(yaml.safe_dump(case, sort_keys=False))
+    run_path.write_text(yaml.safe_dump(run, sort_keys=False))
+
+    result = subprocess.run(
+        [sys.executable, "scripts/score_eval_run.py", str(case_path), str(run_path)],
+        cwd=Path(__file__).parent.parent, capture_output=True, text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stderr == ""
+    assert json.loads(result.stdout)["weighted_signal"] == -1
+
+
+def test_score_cli_missing_versions_keep_required_field_diagnostics(tmp_path: Path) -> None:
+    case = _case()
+    run = _run()
+    del case["case_version"]
+    del run["run_version"]
+    case_path = tmp_path / "case.yaml"
+    run_path = tmp_path / "run.yaml"
+    case_path.write_text(yaml.safe_dump(case, sort_keys=False))
+    run_path.write_text(yaml.safe_dump(run, sort_keys=False))
+
+    result = subprocess.run(
+        [sys.executable, "scripts/score_eval_run.py", str(case_path), str(run_path)],
+        cwd=Path(__file__).parent.parent, capture_output=True, text=True,
+    )
+
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert f"{case_path}: $: 'case_version' is a required property" in result.stderr
+    assert f"{run_path}: $: 'run_version' is a required property" in result.stderr
+    assert "unsupported" not in result.stderr
+    assert "Traceback" not in result.stderr
