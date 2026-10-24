@@ -77,7 +77,7 @@ def _path_sort_key(parts: object) -> tuple[tuple[int, str], ...]:
 def _versioned_schema(root: Path, artifact: str, version: object) -> Path | None:
     if version is None:
         version = 1
-    if isinstance(version, bool):
+    if isinstance(version, bool) or not isinstance(version, (int, float)):
         return None
     filenames = {
         ("case", 1): "case.schema.json",
